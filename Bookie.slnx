@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/HolidayBookings.Api/HolidayBookings.Api.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/HolidayBookings.Tests/HolidayBookings.Tests.csproj" />
+  </Folder>
+</Solution>

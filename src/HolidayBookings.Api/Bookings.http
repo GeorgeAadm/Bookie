@@ -1,0 +1,100 @@
+@host = http://localhost:5292
+
+### List all bookings
+GET {{host}}/api/bookings
+
+### Add an apartment booking
+# @name apartment
+POST {{host}}/api/bookings
+Content-Type: application/json
+
+{
+  "type": "apartment",
+  "primaryGuestName": "Alex Morgan",
+  "primaryGuestEmail": "alex@example.com",
+  "startDate": "2026-12-18",
+  "endDate": "2026-12-22",
+  "notes": "Late arrival, around 22:00"
+}
+
+### Add a vehicle booking
+POST {{host}}/api/bookings
+Content-Type: application/json
+
+{
+  "type": "vehicle",
+  "primaryGuestName": "Alex Morgan",
+  "primaryGuestEmail": "alex@example.com",
+  "startDate": "2026-12-18",
+  "endDate": "2026-12-22",
+  "notes": "Compact, automatic"
+}
+
+### Add a show booking (single day, so start and end match)
+POST {{host}}/api/bookings
+Content-Type: application/json
+
+{
+  "type": "show",
+  "primaryGuestName": "Alex Morgan",
+  "primaryGuestEmail": "alex@example.com",
+  "startDate": "2027-03-04",
+  "endDate": "2027-03-04",
+  "notes": "Two tickets, stalls"
+}
+
+### Read the apartment booking back
+GET {{host}}/api/bookings/{{apartment.response.body.id}}
+
+### Edit it (stay extended by a day)
+PUT {{host}}/api/bookings/{{apartment.response.body.id}}
+Content-Type: application/json
+
+{
+  "type": "apartment",
+  "primaryGuestName": "Alex Morgan",
+  "primaryGuestEmail": "alex@example.com",
+  "startDate": "2026-12-18",
+  "endDate": "2026-12-23",
+  "notes": "Late arrival, around 22:00"
+}
+
+### Remove it
+DELETE {{host}}/api/bookings/{{apartment.response.body.id}}
+
+### Reading it again returns 404
+GET {{host}}/api/bookings/{{apartment.response.body.id}}
+
+
+### --- Failure cases ---
+
+### Missing name and end before start (expect 400 with an errors object)
+POST {{host}}/api/bookings
+Content-Type: application/json
+
+{
+  "type": "apartment",
+  "primaryGuestName": "",
+  "primaryGuestEmail": "not-an-email",
+  "startDate": "2026-12-22",
+  "endDate": "2026-12-18"
+}
+
+### Editing a booking that does not exist (expect 404)
+PUT {{host}}/api/bookings/00000000-0000-0000-0000-000000000001
+Content-Type: application/json
+
+{
+  "type": "apartment",
+  "primaryGuestName": "Alex Phelps",
+  "primaryGuestEmail": "alex@example.com",
+  "startDate": "2026-11-18",
+  "endDate": "2026-11-22",
+  "notes": null
+}
+
+### Removing a booking that does not exist (expect 404)
+DELETE {{host}}/api/bookings/00000000-0000-0000-0000-000000000001
+
+### OpenAPI document (development only)
+GET {{host}}/openapi/v1/openapi.json
