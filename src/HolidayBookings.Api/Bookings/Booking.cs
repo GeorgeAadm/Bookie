@@ -1,18 +1,16 @@
-public sealed record BookingRequest(
+namespace HolidayBookings.Api.Bookings;
+
+public sealed record BookingInput(
     string Type,
     string PrimaryGuestName,
     string PrimaryGuestEmail,
-    DateOnly StartDate,
-    DateOnly EndDate,
-    string? Notes);
+    IBookingDetails Details);
 
 public sealed record Booking(
     Guid Id,
-    string Type,
     string PrimaryGuestName,
     string PrimaryGuestEmail,
-    DateOnly StartDate,
-    DateOnly EndDate,
-    string? Notes,
+    string SupplierReference,
+    IBookingDetails Details,
     DateTimeOffset CreatedAt,
     DateTimeOffset? UpdatedAt = null);

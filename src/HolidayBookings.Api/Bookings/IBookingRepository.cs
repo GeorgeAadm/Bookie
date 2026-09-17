@@ -1,3 +1,5 @@
+namespace HolidayBookings.Api.Bookings;
+
 public interface IBookingRepository
 {
     Task<Booking?> GetAsync(Guid id, CancellationToken ct);
