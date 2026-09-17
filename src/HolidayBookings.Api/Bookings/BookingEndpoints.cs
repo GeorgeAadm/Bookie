@@ -32,8 +32,11 @@ internal static class BookingEndpoints
 
 
     /// <summary>
-    /// Five booking types, one create endpoint, no switch. Shared rules, then the type's own
-    /// rules, then the type's own confirmation, all reached through the resolver.
+    /// Five booking types, one create endpoint. 
+    /// Shared rules, 
+    /// the type's own rules, 
+    /// the type's own confirmation, 
+    /// reached through the resolver.
     /// </summary>
     internal static async Task<Results<Created<Booking>, ValidationProblem, ProblemHttpResult>> CreateAsync(
         BookingInput input,

@@ -5,7 +5,7 @@ namespace HolidayBookings.Api.Bookings;
 /// <summary>
 /// Only the fields every booking shares. 
 /// Per-type rules live with their type and reach the endpoint through IBookingHandler.
-/// This class never grows when a booking type is added.
+/// This class never grows! booking 'types' are added.
 /// </summary>
 internal sealed class BookingInputValidator : AbstractValidator<BookingInput>
 {
