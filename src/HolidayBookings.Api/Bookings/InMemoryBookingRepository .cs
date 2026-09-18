@@ -1,5 +1,7 @@
 using System.Collections.Concurrent;
 
+namespace HolidayBookings.Api.Bookings;
+
 internal sealed class InMemoryBookingRepository : IBookingRepository
 {
     private readonly ConcurrentDictionary<Guid, Booking> _bookings = new();

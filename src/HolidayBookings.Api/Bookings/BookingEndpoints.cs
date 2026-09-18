@@ -1,5 +1,8 @@
 using FluentValidation;
+using FluentValidation.Results;
 using Microsoft.AspNetCore.Http.HttpResults;
+
+namespace HolidayBookings.Api.Bookings;
 internal static class BookingEndpoints
 {
     const string _route = "/api/bookings";
@@ -16,70 +19,114 @@ internal static class BookingEndpoints
 
         return bookings;
     }
+    
+    internal static async Task<Ok<IReadOnlyList<Booking>>> ListAsync(
+        IBookingRepository repository, CancellationToken ct) =>
+        TypedResults.Ok(await repository.ListAsync(ct));
 
-    internal static async Task<Ok<IReadOnlyList<Booking>>> ListAsync(IBookingRepository repository, CancellationToken ct)
-        => TypedResults.Ok(await repository.ListAsync(ct)); 
-        
-    internal static async Task<Results<Ok<Booking>, NotFound>> GetAsync(Guid id, IBookingRepository repository, CancellationToken ct)
-        => await repository.GetAsync(id, ct) is { } existing
-            ? TypedResults.Ok(existing)
+    internal static async Task<Results<Ok<Booking>, NotFound>> GetAsync(
+        Guid id, IBookingRepository repository, CancellationToken ct) =>
+        await repository.GetAsync(id, ct) is { } booking
+            ? TypedResults.Ok(booking)
             : TypedResults.NotFound();
-        
-    internal static async Task<Results<Created<Booking>, ValidationProblem>> CreateAsync(
-        BookingRequest br,
-        IValidator<BookingRequest> validator,
+
+
+    /// <summary>
+    /// Validates shared fields, then defers to the resolved handler for type-specific validation and supplier confirmation.
+    /// </summary>
+    internal static async Task<Results<Created<Booking>, ValidationProblem, ProblemHttpResult>> CreateAsync(
+        BookingInput input,
+        IValidator<BookingInput> sharedValidator,
+        IBookingHandlerResolver handlers,
         IBookingRepository repository,
+        TimeProvider clock,
         CancellationToken ct)
     {
-        var validation = await validator.ValidateAsync(br);
+        var shared = await sharedValidator.ValidateAsync(input, ct);
 
-        if (!validation.IsValid)
+        if (!shared.IsValid)
         {
-            return TypedResults.ValidationProblem(validation.ToDictionary());
+            return TypedResults.ValidationProblem(shared.ToDictionary());
         }
+
+        var handler = handlers.For(input.Details);
+        var typeSpecific = await handler.ValidateAsync(input.Details, ct);
+
+        if (!typeSpecific.IsValid)
+        {
+            return TypedResults.ValidationProblem(PrefixedWithDetails(typeSpecific));
+        }
+
+        var outcome = await handler.ConfirmAsync(input.Details, ct);
+
+        if (outcome is BookingOutcome.Rejected rejected)
+        {
+            return TypedResults.Problem(
+                detail: rejected.Reason,
+                statusCode: StatusCodes.Status409Conflict);
+        }
+
+        var confirmed = (BookingOutcome.Confirmed)outcome;
 
         var booking = new Booking(
             Guid.CreateVersion7(),
-            br.Type,
-            br.PrimaryGuestName,
-            br.PrimaryGuestEmail,
-            br.StartDate,
-            br.EndDate,
-            br.Notes,
-            DateTimeOffset.UtcNow);
+            input.PrimaryGuestName,
+            input.PrimaryGuestEmail,
+            confirmed.SupplierReference,
+            input.Details,
+            clock.GetUtcNow());
 
         await repository.AddAsync(booking, ct);
 
-        return TypedResults.Created($"{_route}/{booking.Id}", booking);
+        return TypedResults.Created($"/api/bookings/{booking.Id}", booking);
     }
-    internal static async Task<Results<Ok<Booking>, NotFound, ValidationProblem>> UpdateAsync(
+
+    internal static async Task<Results<Ok<Booking>, NotFound, ValidationProblem, ProblemHttpResult>> UpdateAsync(
         Guid id,
-        BookingRequest br,
-        IValidator<BookingRequest> validator,
+        BookingInput input,
+        IValidator<BookingInput> sharedValidator,
+        IBookingHandlerResolver handlers,
         IBookingRepository repository,
+        TimeProvider clock,
         CancellationToken ct)
     {
-        var validation = await validator.ValidateAsync(br);
+        var shared = await sharedValidator.ValidateAsync(input, ct);
 
-        if (!validation.IsValid)
+        if (!shared.IsValid)
         {
-            return TypedResults.ValidationProblem(validation.ToDictionary());
+            return TypedResults.ValidationProblem(shared.ToDictionary());
         }
-        
+
         if (await repository.GetAsync(id, ct) is not { } existing)
         {
             return TypedResults.NotFound();
         }
 
+        // not an edit - delete and make new bookings
+        if (existing.Details.GetType() != input.Details.GetType())
+        {
+            return TypedResults.Problem(
+                detail: $"A booking cannot change from {existing.Details.Discriminator} to {input.Details.Discriminator}. Delete it and create a new one.",
+                statusCode: StatusCodes.Status409Conflict);
+        }
+
+        var handler = handlers.For(input.Details);
+        var typeSpecific = await handler.ValidateAsync(input.Details, ct);
+
+        if (!typeSpecific.IsValid)
+        {
+            return TypedResults.ValidationProblem(PrefixedWithDetails(typeSpecific));
+        }
+
+        // An amended booking is not re-confirmed with the supplier here. 
+        // Change rules differ sharply by type (a hotel re-prices, a ticketed flight may refuse outright), 
+        // which is the follow-on step where IBookingHandler grows a CanChange member.
         var updated = existing with
         {
-            Type = br.Type,
-            PrimaryGuestName = br.PrimaryGuestName,
-            PrimaryGuestEmail = br.PrimaryGuestEmail,
-            StartDate = br.StartDate,
-            EndDate = br.EndDate,
-            Notes = br.Notes,
-            UpdatedAt = DateTimeOffset.UtcNow,
+            PrimaryGuestName = input.PrimaryGuestName,
+            PrimaryGuestEmail = input.PrimaryGuestEmail,
+            Details = input.Details,
+            UpdatedAt = clock.GetUtcNow(),
         };
 
         await repository.UpdateAsync(updated, ct);
@@ -87,9 +134,19 @@ internal static class BookingEndpoints
         return TypedResults.Ok(updated);
     }
 
-    internal static async Task<Results<NoContent, NotFound>> DeleteAsync(Guid id, IBookingRepository repository, CancellationToken ct)
-        => await repository.RemoveAsync(id, ct)
+    internal static async Task<Results<NoContent, NotFound>> DeleteAsync(
+        Guid id, IBookingRepository repository, CancellationToken ct) =>
+        await repository.RemoveAsync(id, ct)
             ? TypedResults.NoContent()
             : TypedResults.NotFound();
+
+    /// <summary>Keys become details.checkOut rather than a bare checkOut, so a client can tell
+    /// a nested field from a top-level one of the same name.</summary>
+    private static Dictionary<string, string[]> PrefixedWithDetails(ValidationResult result) =>
+        result.Errors
+            .GroupBy(failure => $"details.{failure.PropertyName}")
+            .ToDictionary(
+                group => group.Key,
+                group => group.Select(failure => failure.ErrorMessage).Distinct().ToArray());
         
 }

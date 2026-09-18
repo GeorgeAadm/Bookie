@@ -1,83 +1,262 @@
 @host = http://localhost:5292
 
-### List all bookings
+### Health check: list all bookings (empty on a fresh run)
 GET {{host}}/api/bookings
 
-### Add an apartment booking
-# @name apartment
+
+### --- Hotels ---
+
+### Book a hotel stay
+# @name hotel
 POST {{host}}/api/bookings
 Content-Type: application/json
 
 {
-  "type": "apartment",
   "primaryGuestName": "Alex Morgan",
   "primaryGuestEmail": "alex@example.com",
-  "startDate": "2026-12-18",
-  "endDate": "2026-12-22",
-  "notes": "Late arrival, around 22:00"
+  "details": {
+    "type": "hotel",
+    "hotelName": "Sea View Hotel",
+    "city": "Cape Town",
+    "checkIn": "2026-12-18",
+    "checkOut": "2026-12-22",
+    "rooms": [
+      { "roomType": "DBL-SEA", "adults": 2, "children": 1 }
+    ]
+  }
 }
 
-### Add a vehicle booking
+### Book two rooms on one reservation
 POST {{host}}/api/bookings
 Content-Type: application/json
 
 {
-  "type": "vehicle",
   "primaryGuestName": "Alex Morgan",
   "primaryGuestEmail": "alex@example.com",
-  "startDate": "2026-12-18",
-  "endDate": "2026-12-22",
-  "notes": "Compact, automatic"
+  "details": {
+    "type": "hotel",
+    "hotelName": "Table Mountain Lodge",
+    "city": "Cape Town",
+    "checkIn": "2027-01-05",
+    "checkOut": "2027-01-09",
+    "rooms": [
+      { "roomType": "DBL", "adults": 2, "children": 0 },
+      { "roomType": "TWN", "adults": 2, "children": 1 }
+    ]
+  }
 }
 
-### Add a show booking (single day, so start and end match)
+
+### --- Vehicles ---
+
+### Book a vehicle, same branch both ends
+# @name vehicle
 POST {{host}}/api/bookings
 Content-Type: application/json
 
 {
-  "type": "show",
   "primaryGuestName": "Alex Morgan",
   "primaryGuestEmail": "alex@example.com",
-  "startDate": "2027-03-04",
-  "endDate": "2027-03-04",
-  "notes": "Two tickets, stalls"
+  "details": {
+    "type": "vehicle",
+    "category": "CDMR",
+    "pickupLocation": "CPT",
+    "pickupAt": "2026-12-18T10:00:00+02:00",
+    "dropoffLocation": "CPT",
+    "dropoffAt": "2026-12-22T10:00:00+02:00",
+    "driverLicenceCountry": "ZA"
+  }
 }
 
-### Read the apartment booking back
-GET {{host}}/api/bookings/{{apartment.response.body.id}}
-
-### Edit it (stay extended by a day)
-PUT {{host}}/api/bookings/{{apartment.response.body.id}}
+### One-way rental across branches
+POST {{host}}/api/bookings
 Content-Type: application/json
 
 {
-  "type": "apartment",
-  "primaryGuestName": "Alex Morgan",
-  "primaryGuestEmail": "alex@example.com",
-  "startDate": "2026-12-18",
-  "endDate": "2026-12-23",
-  "notes": "Late arrival, around 22:00"
+  "primaryGuestName": "Sam Patel",
+  "primaryGuestEmail": "sam@example.com",
+  "details": {
+    "type": "vehicle",
+    "category": "IFAR",
+    "pickupLocation": "CPT",
+    "pickupAt": "2027-01-05T09:00:00+02:00",
+    "dropoffLocation": "GRJ",
+    "dropoffAt": "2027-01-08T16:00:00+02:00",
+    "driverLicenceCountry": "GB"
+  }
 }
 
-### Remove it
-DELETE {{host}}/api/bookings/{{apartment.response.body.id}}
+
+### --- Read, edit, delete ---
+
+### List everything (mixed types in one response)
+GET {{host}}/api/bookings
+
+### Read the hotel booking back
+GET {{host}}/api/bookings/{{hotel.response.body.id}}
+
+### Edit the hotel stay: extend by a night
+PUT {{host}}/api/bookings/{{hotel.response.body.id}}
+Content-Type: application/json
+
+{
+  "primaryGuestName": "Alex Morgan",
+  "primaryGuestEmail": "alex@example.com",
+  "details": {
+    "type": "hotel",
+    "hotelName": "Sea View Hotel",
+    "city": "Cape Town",
+    "checkIn": "2026-12-18",
+    "checkOut": "2026-12-23",
+    "rooms": [
+      { "roomType": "DBL-SEA", "adults": 2, "children": 1 }
+    ]
+  }
+}
+
+### Edit the vehicle: later drop-off
+PUT {{host}}/api/bookings/{{vehicle.response.body.id}}
+Content-Type: application/json
+
+{
+  "primaryGuestName": "Alex Morgan",
+  "primaryGuestEmail": "alex@example.com",
+  "details": {
+    "type": "vehicle",
+    "category": "CDMR",
+    "pickupLocation": "CPT",
+    "pickupAt": "2026-12-18T10:00:00+02:00",
+    "dropoffLocation": "CPT",
+    "dropoffAt": "2026-12-23T18:00:00+02:00",
+    "driverLicenceCountry": "ZA"
+  }
+}
+
+### Delete the vehicle booking
+DELETE {{host}}/api/bookings/{{vehicle.response.body.id}}
 
 ### Reading it again returns 404
-GET {{host}}/api/bookings/{{apartment.response.body.id}}
+GET {{host}}/api/bookings/{{vehicle.response.body.id}}
 
 
 ### --- Failure cases ---
 
-### Missing name and end before start (expect 400 with an errors object)
+### Shared rules: blank name, invalid email (expect 400 on primaryGuestName, primaryGuestEmail)
 POST {{host}}/api/bookings
 Content-Type: application/json
 
 {
-  "type": "apartment",
   "primaryGuestName": "",
   "primaryGuestEmail": "not-an-email",
-  "startDate": "2026-12-22",
-  "endDate": "2026-12-18"
+  "details": {
+    "type": "hotel",
+    "hotelName": "Sea View Hotel",
+    "city": "Cape Town",
+    "checkIn": "2026-12-18",
+    "checkOut": "2026-12-22",
+    "rooms": [{ "roomType": "DBL", "adults": 2, "children": 0 }]
+  }
+}
+
+### Hotel rule: check-out before check-in (expect 400 on details.CheckOut)
+POST {{host}}/api/bookings
+Content-Type: application/json
+
+{
+  "primaryGuestName": "Alex Morgan",
+  "primaryGuestEmail": "alex@example.com",
+  "details": {
+    "type": "hotel",
+    "hotelName": "Sea View Hotel",
+    "city": "Cape Town",
+    "checkIn": "2026-12-22",
+    "checkOut": "2026-12-18",
+    "rooms": [{ "roomType": "DBL", "adults": 2, "children": 0 }]
+  }
+}
+
+### Hotel rule: a room needs at least one adult (expect 400 on details.Rooms[0].Adults)
+POST {{host}}/api/bookings
+Content-Type: application/json
+
+{
+  "primaryGuestName": "Alex Morgan",
+  "primaryGuestEmail": "alex@example.com",
+  "details": {
+    "type": "hotel",
+    "hotelName": "Sea View Hotel",
+    "city": "Cape Town",
+    "checkIn": "2026-12-18",
+    "checkOut": "2026-12-22",
+    "rooms": [{ "roomType": "DBL", "adults": 0, "children": 2 }]
+  }
+}
+
+### Vehicle rule: not a valid ACRISS code (expect 400 on details.Category)
+POST {{host}}/api/bookings
+Content-Type: application/json
+
+{
+  "primaryGuestName": "Alex Morgan",
+  "primaryGuestEmail": "alex@example.com",
+  "details": {
+    "type": "vehicle",
+    "category": "SMALL",
+    "pickupLocation": "CPT",
+    "pickupAt": "2026-12-18T10:00:00+02:00",
+    "dropoffLocation": "CPT",
+    "dropoffAt": "2026-12-22T10:00:00+02:00",
+    "driverLicenceCountry": "ZA"
+  }
+}
+
+### Vehicle rule: drop-off before pickup (expect ONE error on details.DropoffAt, not three)
+POST {{host}}/api/bookings
+Content-Type: application/json
+
+{
+  "primaryGuestName": "Alex Morgan",
+  "primaryGuestEmail": "alex@example.com",
+  "details": {
+    "type": "vehicle",
+    "category": "CDMR",
+    "pickupLocation": "CPT",
+    "pickupAt": "2026-12-22T10:00:00+02:00",
+    "dropoffLocation": "CPT",
+    "dropoffAt": "2026-12-18T10:00:00+02:00",
+    "driverLicenceCountry": "ZA"
+  }
+}
+
+### Unknown booking type (expect 400 listing the known types, not a 500)
+POST {{host}}/api/bookings
+Content-Type: application/json
+
+{
+  "primaryGuestName": "Alex Morgan",
+  "primaryGuestEmail": "alex@example.com",
+  "details": {
+    "type": "submarine",
+    "vesselName": "Nautilus"
+  }
+}
+
+### Changing a booking's type is refused (expect 409)
+PUT {{host}}/api/bookings/{{hotel.response.body.id}}
+Content-Type: application/json
+
+{
+  "primaryGuestName": "Alex Morgan",
+  "primaryGuestEmail": "alex@example.com",
+  "details": {
+    "type": "vehicle",
+    "category": "CDMR",
+    "pickupLocation": "CPT",
+    "pickupAt": "2026-12-18T10:00:00+02:00",
+    "dropoffLocation": "CPT",
+    "dropoffAt": "2026-12-22T10:00:00+02:00",
+    "driverLicenceCountry": "ZA"
+  }
 }
 
 ### Editing a booking that does not exist (expect 404)
@@ -85,16 +264,209 @@ PUT {{host}}/api/bookings/00000000-0000-0000-0000-000000000001
 Content-Type: application/json
 
 {
-  "type": "apartment",
-  "primaryGuestName": "Alex Phelps",
+  "primaryGuestName": "Alex Morgan",
   "primaryGuestEmail": "alex@example.com",
-  "startDate": "2026-11-18",
-  "endDate": "2026-11-22",
-  "notes": null
+  "details": {
+    "type": "hotel",
+    "hotelName": "Sea View Hotel",
+    "city": "Cape Town",
+    "checkIn": "2026-12-18",
+    "checkOut": "2026-12-22",
+    "rooms": [{ "roomType": "DBL", "adults": 2, "children": 0 }]
+  }
 }
 
-### Removing a booking that does not exist (expect 404)
-DELETE {{host}}/api/bookings/00000000-0000-0000-0000-000000000001
+### --- Events ---
+
+### Book event tickets
+# @name event
+POST {{host}}/api/bookings
+Content-Type: application/json
+
+{
+  "primaryGuestName": "Alex Morgan",
+  "primaryGuestEmail": "alex@example.com",
+  "details": {
+    "type": "event",
+    "eventName": "Hamilton",
+    "venue": "Artscape Theatre",
+    "performanceAt": "2027-03-04T19:30:00+02:00",
+    "seatCategory": "STALLS",
+    "tickets": 2
+  }
+}
+
+
+### --- Flights ---
+
+### Direct flight, one adult
+# @name flight
+POST {{host}}/api/bookings
+Content-Type: application/json
+
+{
+  "primaryGuestName": "Alex Morgan",
+  "primaryGuestEmail": "alex@example.com",
+  "details": {
+    "type": "flight",
+    "cabinClass": "ECONOMY",
+    "segments": [
+      {
+        "marketingCarrier": "BA",
+        "flightNumber": "6234",
+        "origin": "CPT",
+        "destination": "LHR",
+        "departsAt": "2026-12-18T19:30:00+02:00",
+        "arrivesAt": "2026-12-19T06:15:00+00:00"
+      }
+    ],
+    "passengers": [
+      { "fullName": "Alex Morgan", "type": "ADT" }
+    ]
+  }
+}
+
+### Connecting itinerary, family with an infant
+POST {{host}}/api/bookings
+Content-Type: application/json
+
+{
+  "primaryGuestName": "Sam Patel",
+  "primaryGuestEmail": "sam@example.com",
+  "details": {
+    "type": "flight",
+    "cabinClass": "BUSINESS",
+    "segments": [
+      {
+        "marketingCarrier": "KL",
+        "flightNumber": "598",
+        "origin": "CPT",
+        "destination": "AMS",
+        "departsAt": "2027-01-05T23:55:00+02:00",
+        "arrivesAt": "2027-01-06T10:30:00+01:00"
+      },
+      {
+        "marketingCarrier": "KL",
+        "flightNumber": "1007",
+        "origin": "AMS",
+        "destination": "LHR",
+        "departsAt": "2027-01-06T12:45:00+01:00",
+        "arrivesAt": "2027-01-06T13:00:00+00:00"
+      }
+    ],
+    "passengers": [
+      { "fullName": "Sam Patel", "type": "ADT" },
+      { "fullName": "Jo Patel", "type": "ADT" },
+      { "fullName": "Robin Patel", "type": "CHD" },
+      { "fullName": "Kit Patel", "type": "INF" }
+    ]
+  }
+}
+
+
+### --- Failure cases: events ---
+
+### Performance already started (expect 400 on details.PerformanceAt)
+POST {{host}}/api/bookings
+Content-Type: application/json
+
+{
+  "primaryGuestName": "Alex Morgan",
+  "primaryGuestEmail": "alex@example.com",
+  "details": {
+    "type": "event",
+    "eventName": "Hamilton",
+    "venue": "Artscape Theatre",
+    "performanceAt": "2020-03-04T19:30:00+02:00",
+    "seatCategory": "STALLS",
+    "tickets": 2
+  }
+}
+
+
+### --- Failure cases: flights ---
+
+### Broken connection: second segment leaves from the wrong airport (expect 400 on details.Segments)
+POST {{host}}/api/bookings
+Content-Type: application/json
+
+{
+  "primaryGuestName": "Sam Patel",
+  "primaryGuestEmail": "sam@example.com",
+  "details": {
+    "type": "flight",
+    "cabinClass": "ECONOMY",
+    "segments": [
+      {
+        "marketingCarrier": "KL", "flightNumber": "598",
+        "origin": "CPT", "destination": "AMS",
+        "departsAt": "2027-01-05T23:55:00+02:00",
+        "arrivesAt": "2027-01-06T10:30:00+01:00"
+      },
+      {
+        "marketingCarrier": "AF", "flightNumber": "1281",
+        "origin": "CDG", "destination": "LHR",
+        "departsAt": "2027-01-06T12:45:00+01:00",
+        "arrivesAt": "2027-01-06T13:00:00+00:00"
+      }
+    ],
+    "passengers": [{ "fullName": "Sam Patel", "type": "ADT" }]
+  }
+}
+
+### More infants than adults (expect 400 on details.Passengers)
+POST {{host}}/api/bookings
+Content-Type: application/json
+
+{
+  "primaryGuestName": "Sam Patel",
+  "primaryGuestEmail": "sam@example.com",
+  "details": {
+    "type": "flight",
+    "cabinClass": "ECONOMY",
+    "segments": [
+      {
+        "marketingCarrier": "BA", "flightNumber": "6234",
+        "origin": "CPT", "destination": "LHR",
+        "departsAt": "2026-12-18T19:30:00+02:00",
+        "arrivesAt": "2026-12-19T06:15:00+00:00"
+      }
+    ],
+    "passengers": [
+      { "fullName": "Sam Patel", "type": "ADT" },
+      { "fullName": "Kit Patel", "type": "INF" },
+      { "fullName": "Robin Patel", "type": "INF" }
+    ]
+  }
+}
+
+### Connection too short: 20 minutes in AMS (expect 409, not 400 - it is valid but unbookable)
+POST {{host}}/api/bookings
+Content-Type: application/json
+
+{
+  "primaryGuestName": "Sam Patel",
+  "primaryGuestEmail": "sam@example.com",
+  "details": {
+    "type": "flight",
+    "cabinClass": "ECONOMY",
+    "segments": [
+      {
+        "marketingCarrier": "KL", "flightNumber": "598",
+        "origin": "CPT", "destination": "AMS",
+        "departsAt": "2027-01-05T23:55:00+02:00",
+        "arrivesAt": "2027-01-06T10:30:00+01:00"
+      },
+      {
+        "marketingCarrier": "KL", "flightNumber": "1007",
+        "origin": "AMS", "destination": "LHR",
+        "departsAt": "2027-01-06T10:50:00+01:00",
+        "arrivesAt": "2027-01-06T11:05:00+00:00"
+      }
+    ],
+    "passengers": [{ "fullName": "Sam Patel", "type": "ADT" }]
+  }
+}
 
 ### OpenAPI document (development only)
 GET {{host}}/openapi/v1/openapi.json
