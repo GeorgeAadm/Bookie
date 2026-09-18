@@ -1,7 +1,6 @@
 namespace HolidayBookings.Api.Bookings;
 
 public sealed record BookingInput(
-    string Type,
     string PrimaryGuestName,
     string PrimaryGuestEmail,
     IBookingDetails Details);
