@@ -3,6 +3,7 @@ using FluentValidation.Results;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace HolidayBookings.Api.Bookings;
+
 internal static class BookingEndpoints
 {
     const string _route = "/api/bookings";
@@ -19,7 +20,7 @@ internal static class BookingEndpoints
 
         return bookings;
     }
-    
+
     internal static async Task<Ok<IReadOnlyList<Booking>>> ListAsync(
         IBookingRepository repository, CancellationToken ct) =>
         TypedResults.Ok(await repository.ListAsync(ct));
@@ -129,7 +130,13 @@ internal static class BookingEndpoints
             UpdatedAt = clock.GetUtcNow(),
         };
 
-        await repository.UpdateAsync(updated, ct);
+        // Fails if another request changed the booking before this write.
+        if (!await repository.TryReplaceAsync(existing, updated, ct))
+        {
+            return TypedResults.Problem(
+                detail: "The booking was modified by another request. Re-read it and try again.",
+                statusCode: StatusCodes.Status409Conflict);
+        }
 
         return TypedResults.Ok(updated);
     }
@@ -148,5 +155,5 @@ internal static class BookingEndpoints
             .ToDictionary(
                 group => group.Key,
                 group => group.Select(failure => failure.ErrorMessage).Distinct().ToArray());
-        
+
 }

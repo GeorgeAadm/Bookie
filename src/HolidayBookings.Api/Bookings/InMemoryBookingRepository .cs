@@ -18,7 +18,7 @@ internal sealed class InMemoryBookingRepository : IBookingRepository
         _bookings[booking.Id] = booking;
         return Task.CompletedTask;
     }
-
+    /*
     public Task<bool> UpdateAsync(Booking booking, CancellationToken ct = default)
     {
         if (!_bookings.ContainsKey(booking.Id))
@@ -29,6 +29,9 @@ internal sealed class InMemoryBookingRepository : IBookingRepository
         _bookings[booking.Id] = booking;
         return Task.FromResult(true);
     }
+    */
+    public Task<bool> TryReplaceAsync(Booking expected, Booking updated, CancellationToken ct = default) =>
+        Task.FromResult(_bookings.TryUpdate(expected.Id, updated, expected));
 
     public Task<bool> RemoveAsync(Guid id, CancellationToken ct = default) =>
         Task.FromResult(_bookings.TryRemove(id, out _));
