@@ -158,7 +158,7 @@ Content-Type: application/json
   }
 }
 
-### Hotel rule: check-out before check-in (expect 400 on details.CheckOut)
+### Hotel rule: check-out before check-in (expect 400 on details.checkOut)
 POST {{host}}/api/bookings
 Content-Type: application/json
 
@@ -175,7 +175,7 @@ Content-Type: application/json
   }
 }
 
-### Hotel rule: a room needs at least one adult (expect 400 on details.Rooms[0].Adults)
+### Hotel rule: a room needs at least one adult (expect 400 on details.rooms[0].adults)
 POST {{host}}/api/bookings
 Content-Type: application/json
 
@@ -192,7 +192,7 @@ Content-Type: application/json
   }
 }
 
-### Vehicle rule: not a valid ACRISS code (expect 400 on details.Category)
+### Vehicle rule: not a valid ACRISS code (expect 400 on details.category)
 POST {{host}}/api/bookings
 Content-Type: application/json
 
@@ -210,7 +210,7 @@ Content-Type: application/json
   }
 }
 
-### Vehicle rule: drop-off before pickup (expect ONE error on details.DropoffAt, not three)
+### Vehicle rule: drop-off before pickup (expect ONE error on details.dropoffAt, not three)
 POST {{host}}/api/bookings
 Content-Type: application/json
 
@@ -366,7 +366,7 @@ Content-Type: application/json
 
 ### --- Failure cases: events ---
 
-### Performance already started (expect 400 on details.PerformanceAt)
+### Performance already started (expect 400 on details.performanceAt)
 POST {{host}}/api/bookings
 Content-Type: application/json
 
@@ -386,7 +386,7 @@ Content-Type: application/json
 
 ### --- Failure cases: flights ---
 
-### Broken connection: second segment leaves from the wrong airport (expect 400 on details.Segments)
+### Broken connection: second segment leaves from the wrong airport (expect 400 on details.segments)
 POST {{host}}/api/bookings
 Content-Type: application/json
 
@@ -414,7 +414,7 @@ Content-Type: application/json
   }
 }
 
-### More infants than adults (expect 400 on details.Passengers)
+### More infants than adults (expect 400 on details.passengers)
 POST {{host}}/api/bookings
 Content-Type: application/json
 
@@ -469,4 +469,4 @@ Content-Type: application/json
 }
 
 ### OpenAPI document (development only)
-GET {{host}}/openapi/v1/openapi.json
+GET {{host}}/openapi/v1.json

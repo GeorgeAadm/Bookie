@@ -3,7 +3,6 @@ using HolidayBookings.Api.Flights;
 using HolidayBookings.Api.Hotels;
 using HolidayBookings.Api.Vehicles;
 using Microsoft.Extensions.Time.Testing;
-using Xunit;
 
 namespace HolidayBookings.Tests;
 

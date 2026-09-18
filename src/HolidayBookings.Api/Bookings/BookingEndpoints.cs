@@ -1,3 +1,4 @@
+using System.Text.Json;
 using FluentValidation;
 using FluentValidation.Results;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -47,7 +48,7 @@ internal static class BookingEndpoints
 
         if (!shared.IsValid)
         {
-            return TypedResults.ValidationProblem(shared.ToDictionary());
+            return TypedResults.ValidationProblem(ToProblemErrors(shared));
         }
 
         var handler = handlers.For(input.Details);
@@ -55,7 +56,7 @@ internal static class BookingEndpoints
 
         if (!typeSpecific.IsValid)
         {
-            return TypedResults.ValidationProblem(PrefixedWithDetails(typeSpecific));
+            return TypedResults.ValidationProblem(ToProblemErrors(typeSpecific, "details"));
         }
 
         var outcome = await handler.ConfirmAsync(input.Details, ct);
@@ -95,7 +96,7 @@ internal static class BookingEndpoints
 
         if (!shared.IsValid)
         {
-            return TypedResults.ValidationProblem(shared.ToDictionary());
+            return TypedResults.ValidationProblem(ToProblemErrors(shared));
         }
 
         if (await repository.GetAsync(id, ct) is not { } existing)
@@ -116,7 +117,7 @@ internal static class BookingEndpoints
 
         if (!typeSpecific.IsValid)
         {
-            return TypedResults.ValidationProblem(PrefixedWithDetails(typeSpecific));
+            return TypedResults.ValidationProblem(ToProblemErrors(typeSpecific, "details"));
         }
 
         // An amended booking is not re-confirmed with the supplier here. 
@@ -131,7 +132,7 @@ internal static class BookingEndpoints
         };
 
         // Fails if another request changed the booking before this write.
-        if (!await repository.TryReplaceAsync(existing, updated, ct))
+        if (!await repository.UpdateAsync(existing, updated, ct))
         {
             return TypedResults.Problem(
                 detail: "The booking was modified by another request. Re-read it and try again.",
@@ -147,13 +148,23 @@ internal static class BookingEndpoints
             ? TypedResults.NoContent()
             : TypedResults.NotFound();
 
-    /// <summary>Keys become details.checkOut rather than a bare checkOut, so a client can tell
-    /// a nested field from a top-level one of the same name.</summary>
-    private static Dictionary<string, string[]> PrefixedWithDetails(ValidationResult result) =>
+    
+    /// <summary>
+    /// Error keys must match the JSON the client sent, not the CLR property names FluentValidation
+    /// reports. Per-type errors take a "details." prefix so a nested field is distinguishable from
+    /// a top-level one of the same name.
+    /// </summary>
+    private static Dictionary<string, string[]> ToProblemErrors(ValidationResult result, string? prefix = null) =>
         result.Errors
-            .GroupBy(failure => $"details.{failure.PropertyName}")
+            .GroupBy(failure => prefix is null
+                ? ToJsonPath(failure.PropertyName)
+                : $"{prefix}.{ToJsonPath(failure.PropertyName)}")
             .ToDictionary(
                 group => group.Key,
                 group => group.Select(failure => failure.ErrorMessage).Distinct().ToArray());
+
+    /// <summary>Rooms[0].Adults becomes rooms[0].adults — each segment, indexers left intact.</summary>
+    private static string ToJsonPath(string propertyName) =>
+        string.Join('.', propertyName.Split('.').Select(JsonNamingPolicy.CamelCase.ConvertName));
 
 }

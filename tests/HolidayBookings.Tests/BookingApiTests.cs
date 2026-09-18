@@ -3,7 +3,6 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using HolidayBookings.Api.Bookings;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Xunit;
 
 namespace HolidayBookings.Tests;
 
