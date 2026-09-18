@@ -4,11 +4,7 @@ using HolidayBookings.Api.Bookings;
 namespace HolidayBookings.Api.Hotels;
 
 /// <summary>
-/// The hotel type's execution step. Found by assembly scanning and reached through
-/// IBookingHandlerResolver, so no shared file names this class.
-///
-/// The base class supplies DetailsType, the cast and validation delegation; only the
-/// confirmation is written here.
+/// The base class supplies DetailsType, the cast and validation delegation; only confirmation is written here.
 /// </summary>
 internal sealed class HotelBookingHandler(
     IValidator<HotelDetails> validator,

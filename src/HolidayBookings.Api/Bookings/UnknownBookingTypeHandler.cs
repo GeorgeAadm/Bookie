@@ -5,7 +5,7 @@ namespace HolidayBookings.Api.Bookings;
 
 /// <summary>
 /// An unrecognised "type" discriminator makes System.Text.Json throw - surface as code 500.
-/// Is a bad request and should read as one.
+/// Should be bad request.
 /// </summary>
 internal sealed class UnknownBookingTypeHandler : IExceptionHandler
 {

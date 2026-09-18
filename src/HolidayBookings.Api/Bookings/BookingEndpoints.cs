@@ -32,11 +32,7 @@ internal static class BookingEndpoints
 
 
     /// <summary>
-    /// Five booking types, one create endpoint. 
-    /// Shared rules, 
-    /// the type's own rules, 
-    /// the type's own confirmation, 
-    /// reached through the resolver.
+    /// Validates shared fields, then defers to the resolved handler for type-specific validation and supplier confirmation.
     /// </summary>
     internal static async Task<Results<Created<Booking>, ValidationProblem, ProblemHttpResult>> CreateAsync(
         BookingInput input,
@@ -106,7 +102,7 @@ internal static class BookingEndpoints
             return TypedResults.NotFound();
         }
 
-        // Turning a hotel booking into a flight is a different booking, not an edit.
+        // not an edit - delete and make new bookings
         if (existing.Details.GetType() != input.Details.GetType())
         {
             return TypedResults.Problem(

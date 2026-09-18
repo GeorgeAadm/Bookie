@@ -3,7 +3,6 @@ using FluentValidation;
 namespace HolidayBookings.Api.Hotels;
 
 /// <summary>
-/// Found and registered by assembly scanning. 
 /// TimeProvider is injected so the past-date rule is testable without freezing the machine clock.
 /// </summary>
 internal sealed class HotelDetailsValidator : AbstractValidator<HotelDetails>

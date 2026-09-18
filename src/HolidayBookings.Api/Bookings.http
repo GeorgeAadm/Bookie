@@ -276,5 +276,197 @@ Content-Type: application/json
   }
 }
 
+### --- Events ---
+
+### Book event tickets
+# @name event
+POST {{host}}/api/bookings
+Content-Type: application/json
+
+{
+  "primaryGuestName": "Alex Morgan",
+  "primaryGuestEmail": "alex@example.com",
+  "details": {
+    "type": "event",
+    "eventName": "Hamilton",
+    "venue": "Artscape Theatre",
+    "performanceAt": "2027-03-04T19:30:00+02:00",
+    "seatCategory": "STALLS",
+    "tickets": 2
+  }
+}
+
+
+### --- Flights ---
+
+### Direct flight, one adult
+# @name flight
+POST {{host}}/api/bookings
+Content-Type: application/json
+
+{
+  "primaryGuestName": "Alex Morgan",
+  "primaryGuestEmail": "alex@example.com",
+  "details": {
+    "type": "flight",
+    "cabinClass": "ECONOMY",
+    "segments": [
+      {
+        "marketingCarrier": "BA",
+        "flightNumber": "6234",
+        "origin": "CPT",
+        "destination": "LHR",
+        "departsAt": "2026-12-18T19:30:00+02:00",
+        "arrivesAt": "2026-12-19T06:15:00+00:00"
+      }
+    ],
+    "passengers": [
+      { "fullName": "Alex Morgan", "type": "ADT" }
+    ]
+  }
+}
+
+### Connecting itinerary, family with an infant
+POST {{host}}/api/bookings
+Content-Type: application/json
+
+{
+  "primaryGuestName": "Sam Patel",
+  "primaryGuestEmail": "sam@example.com",
+  "details": {
+    "type": "flight",
+    "cabinClass": "BUSINESS",
+    "segments": [
+      {
+        "marketingCarrier": "KL",
+        "flightNumber": "598",
+        "origin": "CPT",
+        "destination": "AMS",
+        "departsAt": "2027-01-05T23:55:00+02:00",
+        "arrivesAt": "2027-01-06T10:30:00+01:00"
+      },
+      {
+        "marketingCarrier": "KL",
+        "flightNumber": "1007",
+        "origin": "AMS",
+        "destination": "LHR",
+        "departsAt": "2027-01-06T12:45:00+01:00",
+        "arrivesAt": "2027-01-06T13:00:00+00:00"
+      }
+    ],
+    "passengers": [
+      { "fullName": "Sam Patel", "type": "ADT" },
+      { "fullName": "Jo Patel", "type": "ADT" },
+      { "fullName": "Robin Patel", "type": "CHD" },
+      { "fullName": "Kit Patel", "type": "INF" }
+    ]
+  }
+}
+
+
+### --- Failure cases: events ---
+
+### Performance already started (expect 400 on details.PerformanceAt)
+POST {{host}}/api/bookings
+Content-Type: application/json
+
+{
+  "primaryGuestName": "Alex Morgan",
+  "primaryGuestEmail": "alex@example.com",
+  "details": {
+    "type": "event",
+    "eventName": "Hamilton",
+    "venue": "Artscape Theatre",
+    "performanceAt": "2020-03-04T19:30:00+02:00",
+    "seatCategory": "STALLS",
+    "tickets": 2
+  }
+}
+
+
+### --- Failure cases: flights ---
+
+### Broken connection: second segment leaves from the wrong airport (expect 400 on details.Segments)
+POST {{host}}/api/bookings
+Content-Type: application/json
+
+{
+  "primaryGuestName": "Sam Patel",
+  "primaryGuestEmail": "sam@example.com",
+  "details": {
+    "type": "flight",
+    "cabinClass": "ECONOMY",
+    "segments": [
+      {
+        "marketingCarrier": "KL", "flightNumber": "598",
+        "origin": "CPT", "destination": "AMS",
+        "departsAt": "2027-01-05T23:55:00+02:00",
+        "arrivesAt": "2027-01-06T10:30:00+01:00"
+      },
+      {
+        "marketingCarrier": "AF", "flightNumber": "1281",
+        "origin": "CDG", "destination": "LHR",
+        "departsAt": "2027-01-06T12:45:00+01:00",
+        "arrivesAt": "2027-01-06T13:00:00+00:00"
+      }
+    ],
+    "passengers": [{ "fullName": "Sam Patel", "type": "ADT" }]
+  }
+}
+
+### More infants than adults (expect 400 on details.Passengers)
+POST {{host}}/api/bookings
+Content-Type: application/json
+
+{
+  "primaryGuestName": "Sam Patel",
+  "primaryGuestEmail": "sam@example.com",
+  "details": {
+    "type": "flight",
+    "cabinClass": "ECONOMY",
+    "segments": [
+      {
+        "marketingCarrier": "BA", "flightNumber": "6234",
+        "origin": "CPT", "destination": "LHR",
+        "departsAt": "2026-12-18T19:30:00+02:00",
+        "arrivesAt": "2026-12-19T06:15:00+00:00"
+      }
+    ],
+    "passengers": [
+      { "fullName": "Sam Patel", "type": "ADT" },
+      { "fullName": "Kit Patel", "type": "INF" },
+      { "fullName": "Robin Patel", "type": "INF" }
+    ]
+  }
+}
+
+### Connection too short: 20 minutes in AMS (expect 409, not 400 - it is valid but unbookable)
+POST {{host}}/api/bookings
+Content-Type: application/json
+
+{
+  "primaryGuestName": "Sam Patel",
+  "primaryGuestEmail": "sam@example.com",
+  "details": {
+    "type": "flight",
+    "cabinClass": "ECONOMY",
+    "segments": [
+      {
+        "marketingCarrier": "KL", "flightNumber": "598",
+        "origin": "CPT", "destination": "AMS",
+        "departsAt": "2027-01-05T23:55:00+02:00",
+        "arrivesAt": "2027-01-06T10:30:00+01:00"
+      },
+      {
+        "marketingCarrier": "KL", "flightNumber": "1007",
+        "origin": "AMS", "destination": "LHR",
+        "departsAt": "2027-01-06T10:50:00+01:00",
+        "arrivesAt": "2027-01-06T11:05:00+00:00"
+      }
+    ],
+    "passengers": [{ "fullName": "Sam Patel", "type": "ADT" }]
+  }
+}
+
 ### OpenAPI document (development only)
 GET {{host}}/openapi/v1/openapi.json

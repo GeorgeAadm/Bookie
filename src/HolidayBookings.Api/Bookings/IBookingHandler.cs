@@ -20,7 +20,7 @@ public abstract record BookingOutcome
 {
     private BookingOutcome() { }
 
-    /// <param name="SupplierReference">What the supplier calls this booking. Ours is the Guid.</param>
+    /// <param name="SupplierReference">How supplier IDs this booking</param>
     public sealed record Confirmed(string SupplierReference) : BookingOutcome;
 
     public sealed record Rejected(string Reason) : BookingOutcome;
