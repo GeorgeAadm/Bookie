@@ -8,13 +8,11 @@ internal sealed class EventDetailsValidator : AbstractValidator<EventDetails>
 
     public EventDetailsValidator(TimeProvider clock)
     {
+        RuleLevelCascadeMode = CascadeMode.Stop;
+
         RuleFor(x => x.EventName).NotEmpty().MaximumLength(200);
         RuleFor(x => x.Venue).NotEmpty().MaximumLength(200);
-
-        RuleFor(x => x.SeatCategory)
-            .NotEmpty()
-            .MaximumLength(50)
-            .WithMessage("A seat category is required, for example VIP or DEFAULT.");
+        RuleFor(x => x.SeatCategory).NotEmpty().MaximumLength(50);
 
         RuleFor(x => x.PerformanceAt)
             .GreaterThan(_ => clock.GetUtcNow())
@@ -22,6 +20,6 @@ internal sealed class EventDetailsValidator : AbstractValidator<EventDetails>
 
         RuleFor(x => x.Tickets)
             .InclusiveBetween(1, MaximumTickets)
-            .WithMessage($"Between 1 and {MaximumTickets} tickets can be booked at once. Larger parties need a group booking.");
+            .WithMessage($"Between 1 and {MaximumTickets} tickets can be booked at once.");
     }
 }

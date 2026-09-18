@@ -52,11 +52,11 @@ public class BookingTypeCoverageTests(WebApplicationFactory<Program> factory)
     [Fact]
     public void The_discriminator_property_matches_the_attribute()
     {
-        foreach (var (detailsType, attributeDiscriminator) in KnownBookingTypes.Discriminators)
+        foreach (var attribute in typeof(IBookingDetails).GetCustomAttributes<JsonDerivedTypeAttribute>())
         {
-            var instance = (IBookingDetails)RuntimeHelpers.GetUninitializedObject(detailsType);
+            var instance = (IBookingDetails)RuntimeHelpers.GetUninitializedObject(attribute.DerivedType);
 
-            Assert.Equal(attributeDiscriminator, instance.Discriminator);
+            Assert.Equal(attribute.TypeDiscriminator?.ToString(), instance.Discriminator);
         }
     }
 }

@@ -2,15 +2,15 @@ using FluentValidation;
 
 namespace HolidayBookings.Api.Hotels;
 
-/// <summary>
-/// TimeProvider is injected so the past-date rule is testable without freezing the machine clock.
-/// </summary>
 internal sealed class HotelDetailsValidator : AbstractValidator<HotelDetails>
 {
     private const int MaximumNights = 30;
+    private const int MaximumRooms = 5;
 
     public HotelDetailsValidator(TimeProvider clock)
     {
+        RuleLevelCascadeMode = CascadeMode.Stop;
+
         RuleFor(x => x.HotelName).NotEmpty().MaximumLength(200);
         RuleFor(x => x.City).NotEmpty().MaximumLength(100);
 
@@ -20,21 +20,20 @@ internal sealed class HotelDetailsValidator : AbstractValidator<HotelDetails>
 
         RuleFor(x => x.CheckOut)
             .GreaterThan(x => x.CheckIn)
-            .WithMessage("Check-out must be after check-in.");
-
-        RuleFor(x => x.Nights)
-            .LessThanOrEqualTo(MaximumNights)
-            .WithMessage($"A stay cannot exceed {MaximumNights} nights. Split it into two bookings.")
-            .When(x => x.CheckOut > x.CheckIn);
+            .WithMessage("Check-out must be after check-in.")
+            .DependentRules(() =>
+            {
+                // only meaningful once the dates are the right way round
+                RuleFor(x => x.Nights)
+                    .LessThanOrEqualTo(MaximumNights)
+                    .WithMessage($"A stay cannot exceed {MaximumNights} nights. Split it into two bookings.");
+            });
 
         RuleFor(x => x.Rooms)
             .NotEmpty()
-            .WithMessage("At least one room is required.");
-
-        RuleFor(x => x.Rooms)
-            .Must(rooms => rooms.Count <= 5)
-            .WithMessage("A single booking cannot hold more than five rooms.")
-            .When(x => x.Rooms is not null);
+            .WithMessage("At least one room is required.")
+            .Must(rooms => rooms.Count <= MaximumRooms)
+            .WithMessage($"A single booking cannot hold more than {MaximumRooms} rooms.");
 
         RuleForEach(x => x.Rooms).ChildRules(room =>
         {
